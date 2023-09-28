@@ -1,13 +1,19 @@
 package by.itacademy.hibernate.dao;
 
 
-import by.itacademy.hibernate.entity.Payment;
-import by.itacademy.hibernate.entity.User;
+import by.itacademy.hibernate.entity.*;
+import com.querydsl.core.Tuple;
+import com.querydsl.jpa.impl.JPAQuery;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.hibernate.Session;
 
+import java.time.LocalDate;
 import java.util.List;
+
+import static by.itacademy.hibernate.entity.QCompany.*;
+import static by.itacademy.hibernate.entity.QPayment.*;
+import static by.itacademy.hibernate.entity.QUser.*;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserDao {
@@ -18,7 +24,7 @@ public class UserDao {
      * Возвращает всех сотрудников
      */
     public List<User> findAll(Session session) {
-        return session.createQuery("select u from User u", User.class).list();
+        return new JPAQuery<User>(session).select(user).from(user).fetch();
     }
 
     /**
@@ -127,6 +133,69 @@ public class UserDao {
                         order by pi.firstname
                         """)
                 .list();
+    }
+
+    /**
+     * Возвращает всех сотрудников с указанным фамилиями
+     */
+    public List<User> findAllByLastName(Session session, String lastName) {
+        return new JPAQuery<User>(session).select(user).from(user)
+                .where(user.personalInfo.lastname.eq(lastName)).fetch();
+    }
+
+    /**
+     * Возвращает всех сотрудников с указанной датой рождения
+     */
+    public List<User> findAllByUserByDateOfBirth(Session session, LocalDate dateOfBirth) {
+        return new JPAQuery<User>(session).select(user).from(user)
+                .where(user.personalInfo.birthDate.eq(new Birthday(dateOfBirth))).fetch();
+    }
+
+    /**
+     * Возвращает Фамилию Имя сотрудника, компанию и среднюю зарплату
+     * отсортированной по зарплате
+     */
+    public List<Tuple> findAllWithFirstNameLastNameCompanyAndAvgSalary(Session session) {
+        return new JPAQuery<Tuple>(session)
+                .select(user.personalInfo.lastname,
+                        user.personalInfo.firstname,
+                        company.name,
+                        payment.amount.avg(),
+                        user.id)
+                .from(user)
+                .join(user.company, company)
+                .join(user.payments, payment)
+                .groupBy(user, company.name)
+                .orderBy(payment.amount.avg().desc())
+                .fetch();
+    }
+
+    /**
+     * Возвращает среднюю зарплату по компании
+     */
+    public List<Tuple> findAllСompaniesWithAvgSalary(Session session) {
+        return new JPAQuery<Tuple>(session)
+                .select(company.name,
+                        payment.amount.avg())
+                .from(user)
+                .join(user.company, company)
+                .join(user.payments, payment)
+                .groupBy(company.name)
+                .orderBy(payment.amount.avg().desc())
+                .fetch();
+    }
+
+    /**
+     * Возвращает пользователя с одинаковой первой буквой фамилии и компании
+     */
+    public List<Tuple> findAllWithFirstCharUserLastNameAndCompany(Session session, String character) {
+        return new JPAQuery<User>(session)
+                .select(user, company.name)
+                .from(user)
+                .join(user.company, company)
+                .where(user.personalInfo.lastname.like(character + "%")
+                        .and(user.company.name.like(character + "%")))
+                .fetch();
     }
 
     public static UserDao getInstance() {

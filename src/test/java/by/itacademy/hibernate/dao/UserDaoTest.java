@@ -1,10 +1,12 @@
 package by.itacademy.hibernate.dao;
 
 
+import by.itacademy.hibernate.entity.Birthday;
 import by.itacademy.hibernate.utils.TestDataImporter;
 import by.itacademy.hibernate.entity.Payment;
 import by.itacademy.hibernate.entity.User;
 import by.itacademy.hibernate.util.HibernateUtil;
+import com.querydsl.core.Tuple;
 import lombok.Cleanup;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
@@ -147,6 +150,69 @@ class UserDaoTest {
         List<Double> averagePayments = results.stream().map(r -> (Double) r[1]).collect(toList());
         assertThat(averagePayments).contains(500.0, 450.0);
 
+        session.getTransaction().commit();
+    }
+
+
+    @Test
+    void findAllByLastName() {
+        @Cleanup Session session = sessionFactory.openSession();
+        session.beginTransaction();
+        List<User> results = userDao.findAllByLastName(session, "Gates");
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).fullName()).isEqualTo("Bill Gates");
+        session.getTransaction().commit();
+    }
+
+    @Test
+    void findAllByUserByDateOfBirth() {
+        @Cleanup Session session = sessionFactory.openSession();
+        session.beginTransaction();
+        LocalDate dateOfBirth = LocalDate.of(1955, 01, 01);
+        List<User> results = userDao.findAllByUserByDateOfBirth(session, dateOfBirth);
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).fullName()).isEqualTo("Diane Greene");
+        assertThat(results.get(0).getPersonalInfo().getBirthDate()).isEqualTo(new Birthday(dateOfBirth));
+        session.getTransaction().commit();
+    }
+
+    @Test
+    void findAllWithFirstNameLastNameCompanyAndAvgSalary() {
+        @Cleanup Session session = sessionFactory.openSession();
+        session.beginTransaction();
+        List<Tuple> results = userDao.findAllWithFirstNameLastNameCompanyAndAvgSalary(session);
+        System.out.println(results);
+        List<String> orgLastName = results.stream().map(a -> (a.get(0, String.class))).collect(toList());
+        assertThat(orgLastName).contains("Brin", "Jobs", "Cook", "Greene", "Gates");
+        List<Double> orgAvgPayments = results.stream().map(a -> (a.get(3, Double.class))).collect(toList());
+        assertThat(orgAvgPayments).contains(500.0, 450.0, 350.0, 300.0, 300.0);
+        session.getTransaction().commit();
+    }
+
+
+    @Test
+    void findAllСompaniesWithAvgSalary() {
+        @Cleanup Session session = sessionFactory.openSession();
+        session.beginTransaction();
+        List<Tuple> results = userDao.findAllСompaniesWithAvgSalary(session);
+        System.out.println(results);
+        List<String> orgLastName = results.stream().map(a -> (a.get(0, String.class))).collect(toList());
+        assertThat(orgLastName).contains("Apple", "Google", "Microsoft");
+        List<Double> orgAvgPayments = results.stream().map(a -> (a.get(1, Double.class))).collect(toList());
+        assertThat(orgAvgPayments).contains(410.0, 400.0, 300.0);
+        session.getTransaction().commit();
+    }
+
+    @Test
+    void findAllWithFirstCharUserLastNameAndCompany() {
+        @Cleanup Session session = sessionFactory.openSession();
+        session.beginTransaction();
+        List<Tuple> results = userDao.findAllWithFirstCharUserLastNameAndCompany(session, "G");
+        List<User> orgLastName = results.stream().map(a -> (a.get(0, User.class))).toList();
+        assertThat(orgLastName.get(0).getPersonalInfo().getLastname()).contains("Greene");
+        List<String> orgAvgPayments = results.stream().map(a -> (a.get(1, String.class))).collect(toList());
+        assertThat(orgAvgPayments).contains("Google");
+        System.out.println(results);
         session.getTransaction().commit();
     }
 }
